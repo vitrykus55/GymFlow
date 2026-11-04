@@ -20,8 +20,10 @@ if str(backend_root) not in sys.path:
 # Compose-provided environment variables take precedence in the container.
 load_dotenv(project_root / ".env", override=False)
 
+from app import models  # noqa: E402, F401
 from app.core.config import settings  # noqa: E402
-from app.db.session import Base, engine  # noqa: E402
+from app.db.base import Base  # noqa: E402
+from app.db.session import engine  # noqa: E402
 
 # Import model modules here as they are added so their tables register on Base.metadata.
 target_metadata = Base.metadata
