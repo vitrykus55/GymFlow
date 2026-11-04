@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["integration: optional tests requiring a dedicated PostgreSQL test database"]
 
 [tool.ruff]
 line-length = 100
