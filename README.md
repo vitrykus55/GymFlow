@@ -17,6 +17,7 @@ docker compose up --build
 
 - `frontend/` – Next.js app
 - `backend/` – FastAPI app
+- Backend setup and development guide: [`backend/README.md`](backend/README.md)
 - `docker-compose.yml` – local development
 - `docker-compose.prod.yml` – production build
 
