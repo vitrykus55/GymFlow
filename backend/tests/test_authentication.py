@@ -180,6 +180,21 @@ def test_login_returns_same_error_for_unknown_email_and_incorrect_password(
     assert incorrect_password_response.json() == unknown_email_response.json()
 
 
+def test_login_rejects_malformed_stored_password_hash(
+    client: TestClient, authentication_session: InMemoryAuthenticationSession
+) -> None:
+    user = authentication_session.add_user()
+    user.password_hash = "not-a-password-hash"
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "user@example.com", "password": "correct horse battery staple"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid email or password."}
+
+
 def test_inactive_user_cannot_log_in(
     client: TestClient, authentication_session: InMemoryAuthenticationSession
 ) -> None:

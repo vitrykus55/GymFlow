@@ -1,3 +1,4 @@
+import jwt
 import pytest
 from pydantic import SecretStr
 
@@ -32,6 +33,10 @@ def test_verify_password_rejects_incorrect_password() -> None:
     hashed_password = security.hash_password("correct horse battery staple")
 
     assert security.verify_password("wrong password", hashed_password) is False
+
+
+def test_verify_password_rejects_malformed_hash() -> None:
+    assert security.verify_password("correct horse battery staple", "not-a-password-hash") is False
 
 
 def test_hash_password_uses_unique_salts() -> None:
@@ -94,3 +99,14 @@ def test_decode_access_token_rejects_token_with_incorrect_secret(
 def test_decode_access_token_rejects_malformed_token() -> None:
     with pytest.raises(security.InvalidAccessTokenError, match="Invalid access token"):
         security.decode_access_token("not-a-jwt")
+
+
+def test_decode_access_token_rejects_non_string_subject() -> None:
+    token = jwt.encode(
+        {"sub": 42, "iat": 0, "exp": 9_999_999_999},
+        TEST_JWT_SECRET,
+        algorithm="HS256",
+    )
+
+    with pytest.raises(security.InvalidAccessTokenError, match="Invalid access token"):
+        security.decode_access_token(token)
