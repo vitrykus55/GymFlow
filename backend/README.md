@@ -23,9 +23,9 @@ If you already have the repository, open its root directory instead. Create the 
 Copy-Item .env.example .env
 ```
 
-Set `DATABASE_URL` in the root `.env` to your Neon PostgreSQL connection URL. Use the `postgresql+psycopg` driver and require TLS with `sslmode=require`. Do not paste credentials into documentation, source files, or Git. Keep `.env` on your machine; it must never be committed.
+Set `DATABASE_URL` in the root `.env` to your Neon PostgreSQL connection URL. Use the `postgresql+psycopg` driver and require TLS with `sslmode=require`. Generate `JWT_SECRET_KEY` with `openssl rand -hex 32` and keep it private. Do not paste credentials or secrets into documentation, source files, or Git. Keep `.env` on your machine; it must never be committed.
 
-The development Compose stack requires `DATABASE_URL`. `BACKEND_CORS_ORIGINS` defaults to `http://localhost:3000`, and `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`. The production-like Compose file uses `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` for its own PostgreSQL container; it does not connect that container to Neon.
+The development Compose stack requires `DATABASE_URL` and `JWT_SECRET_KEY`. `BACKEND_CORS_ORIGINS` defaults to `http://localhost:3000`, and `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`. The production-like Compose file uses `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` for its own PostgreSQL container; it does not connect that container to Neon.
 
 ## Create a Python environment and install dependencies
 
