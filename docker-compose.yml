@@ -10,6 +10,9 @@ services:
       ENVIRONMENT: development
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (Neon PostgreSQL URL required)}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
     ports:
       - "8000:8000"
     volumes:

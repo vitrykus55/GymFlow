@@ -1,5 +1,6 @@
 """SQLAlchemy models registered with the shared declarative base."""
 
+from app.models.auth_refresh_token import AuthRefreshToken
 from app.models.booking import Booking
 from app.models.check_in import CheckIn
 from app.models.class_session import ClassSession
@@ -18,6 +19,7 @@ from app.models.payment import Payment
 from app.models.user import User
 
 __all__ = [
+    "AuthRefreshToken",
     "Booking",
     "BookingStatus",
     "CheckIn",
