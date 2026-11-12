@@ -45,3 +45,4 @@ jobs:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: ci
+          JWT_SECRET_KEY: ci-only-placeholder-not-for-runtime
