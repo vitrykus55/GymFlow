@@ -2,16 +2,24 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.security import create_access_token, hash_password, verify_password
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.auth import RegisterUserRequest
+from app.schemas.auth import LoginRequest, RegisterUserRequest
 
 EMAIL_UNIQUE_CONSTRAINT = "ux_users_email_lower"
 
 
 class EmailAlreadyRegisteredError(Exception):
     """Raised when an email address is already registered."""
+
+
+class InvalidCredentialsError(Exception):
+    """Raised when login credentials do not identify a user."""
+
+
+class InactiveUserError(Exception):
+    """Raised when an inactive user attempts to log in."""
 
 
 def register_user(db: Session, registration: RegisterUserRequest) -> User:
@@ -42,6 +50,17 @@ def register_user(db: Session, registration: RegisterUserRequest) -> User:
 
     db.refresh(user)
     return user
+
+
+def login_user(db: Session, login: LoginRequest) -> str:
+    """Validate credentials and return an access token for an active user."""
+    email = login.email.strip().lower()
+    user = db.scalar(select(User).where(func.lower(User.email) == email))
+    if user is None or not verify_password(login.password, user.password_hash):
+        raise InvalidCredentialsError
+    if not user.is_active:
+        raise InactiveUserError
+    return create_access_token(user.id)
 
 
 def _is_duplicate_email_error(error: IntegrityError) -> bool:
