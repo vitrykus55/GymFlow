@@ -40,6 +40,17 @@ def test_hash_password_uses_unique_salts() -> None:
     assert security.hash_password(password) != security.hash_password(password)
 
 
+def test_hash_refresh_token_returns_expected_sha256_digest() -> None:
+    token = "opaque-refresh-token"
+
+    token_hash = security.hash_refresh_token(token)
+
+    assert token_hash == "862f58013a2bd2d34eba271c56252c0e69b4715133aea31b0d0ebbb1470c3d6e"
+    assert len(token_hash) == 64
+    assert token_hash.isalnum()
+    assert security.hash_refresh_token(token) == token_hash
+
+
 def test_create_and_decode_access_token() -> None:
     token = security.create_access_token(user_id=42)
 

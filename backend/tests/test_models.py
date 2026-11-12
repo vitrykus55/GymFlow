@@ -17,6 +17,7 @@ from sqlalchemy.schema import CreateIndex
 
 from app.db.base import Base
 from app.models import (
+    AuthRefreshToken,
     Booking,
     CheckIn,
     ClassSession,
@@ -42,6 +43,7 @@ def test_all_model_mappers_configure_successfully() -> None:
 
     assert {mapper.class_ for mapper in Base.registry.mappers} == {
         User,
+        AuthRefreshToken,
         MembershipType,
         Membership,
         Payment,
@@ -55,6 +57,7 @@ def test_all_model_mappers_configure_successfully() -> None:
 def test_expected_tables_and_primary_keys_are_registered() -> None:
     expected_tables = {
         "users",
+        "auth_refresh_tokens",
         "membership_types",
         "memberships",
         "payments",
@@ -77,6 +80,10 @@ def test_expected_tables_and_primary_keys_are_registered() -> None:
         ("users", "phone", String, True, 30),
         ("users", "birth_date", Date, True, None),
         ("users", "is_active", Boolean, False, None),
+        ("auth_refresh_tokens", "token_hash", String, False, 64),
+        ("auth_refresh_tokens", "expires_at", DateTime, False, None),
+        ("auth_refresh_tokens", "revoked_at", DateTime, True, None),
+        ("auth_refresh_tokens", "replaced_by_token_id", BigInteger, True, None),
         ("class_types", "duration_minutes", Integer, False, None),
         ("class_sessions", "room", String, True, 50),
         ("class_sessions", "capacity", Integer, False, None),
@@ -116,6 +123,9 @@ def test_timestamp_columns_are_timezone_aware() -> None:
     timestamp_columns = (
         ("users", "created_at"),
         ("users", "updated_at"),
+        ("auth_refresh_tokens", "expires_at"),
+        ("auth_refresh_tokens", "revoked_at"),
+        ("auth_refresh_tokens", "created_at"),
         ("class_sessions", "starts_at"),
         ("class_sessions", "ends_at"),
         ("bookings", "created_at"),
@@ -165,6 +175,8 @@ def test_postgresql_enums_preserve_names_and_values(
         (User, "memberships", Membership, "user"),
         (User, "payments", Payment, "user"),
         (User, "check_ins", CheckIn, "user"),
+        (User, "refresh_tokens", AuthRefreshToken, "user"),
+        (AuthRefreshToken, "user", User, "refresh_tokens"),
         (User, "class_sessions_as_trainer", ClassSession, "trainer"),
         (ClassType, "class_sessions", ClassSession, "class_type"),
         (ClassSession, "class_type", ClassType, "class_sessions"),
@@ -206,6 +218,18 @@ def test_foreign_keys_reference_expected_columns_and_on_delete_actions() -> None
             "SET NULL",
         ),
         "check_ins_user_id_fkey": ("check_ins", "user_id", "users.id", "CASCADE"),
+        "auth_refresh_tokens_user_id_fkey": (
+            "auth_refresh_tokens",
+            "user_id",
+            "users.id",
+            "CASCADE",
+        ),
+        "auth_refresh_tokens_replaced_by_token_id_fkey": (
+            "auth_refresh_tokens",
+            "replaced_by_token_id",
+            "auth_refresh_tokens.id",
+            "SET NULL",
+        ),
         "class_sessions_class_type_id_fkey": (
             "class_sessions",
             "class_type_id",
@@ -262,6 +286,7 @@ def test_foreign_keys_reference_expected_columns_and_on_delete_actions() -> None
         ),
         ("memberships", {"ck_membership_dates"}, CheckConstraint),
         ("payments", {"ck_payments_amount"}, CheckConstraint),
+        ("auth_refresh_tokens", {"uq_auth_refresh_tokens_token_hash"}, UniqueConstraint),
     ],
 )
 def test_named_constraints_are_registered(
@@ -278,6 +303,11 @@ def test_important_indexes_and_functional_email_index_are_registered() -> None:
         "memberships": {"ix_memberships_status_end", "ix_memberships_user_id"},
         "payments": {"ix_payments_paid_at", "ix_payments_user_id"},
         "users": {"ix_users_role", "ux_users_email_lower"},
+        "auth_refresh_tokens": {
+            "ix_auth_refresh_tokens_expires_at",
+            "ix_auth_refresh_tokens_family_id",
+            "ix_auth_refresh_tokens_user_id",
+        },
     }
 
     for table_name, expected_names in expected_indexes.items():

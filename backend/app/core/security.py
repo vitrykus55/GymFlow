@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from typing import Any
 
 import jwt
@@ -21,6 +22,11 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return whether a plaintext password matches its stored hash."""
     return password_hash.verify(plain_password, hashed_password)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return the SHA-256 digest used to persist an opaque refresh token."""
+    return sha256(token.encode("utf-8")).hexdigest()
 
 
 def create_access_token(user_id: int) -> str:

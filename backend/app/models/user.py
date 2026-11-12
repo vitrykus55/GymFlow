@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.enums import UserRole, user_role_enum
 
 if TYPE_CHECKING:
+    from app.models.auth_refresh_token import AuthRefreshToken
     from app.models.booking import Booking
     from app.models.check_in import CheckIn
     from app.models.class_session import ClassSession
@@ -49,6 +50,9 @@ class User(Base):
     )
     payments: Mapped[list[Payment]] = relationship(back_populates="user")
     check_ins: Mapped[list[CheckIn]] = relationship(back_populates="user", passive_deletes=True)
+    refresh_tokens: Mapped[list[AuthRefreshToken]] = relationship(
+        back_populates="user", passive_deletes=True
+    )
     class_sessions_as_trainer: Mapped[list[ClassSession]] = relationship(
         back_populates="trainer", foreign_keys="ClassSession.trainer_id"
     )
