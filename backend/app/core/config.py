@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256"] = "HS256"
     access_token_expire_minutes: int = Field(default=15, gt=0)
 
+    refresh_token_expire_days: int = Field(default=7, gt=0)
+    refresh_token_cookie_name: str = "gymflow_refresh_token"
+    refresh_token_cookie_path: str = "/api/v1/auth"
+    refresh_token_cookie_secure: bool | None = None
+    refresh_token_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    refresh_token_cookie_domain: str | None = None
+
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret_key(cls, value: SecretStr | None) -> SecretStr | None:
@@ -35,6 +42,12 @@ class Settings(BaseSettings):
     def require_jwt_secret_key_in_production(self) -> "Settings":
         if self.environment == "production" and self.jwt_secret_key is None:
             raise ValueError("JWT_SECRET_KEY must be configured in production.")
+        if self.refresh_token_cookie_secure is None:
+            self.refresh_token_cookie_secure = self.environment == "production"
+        if self.refresh_token_cookie_samesite == "none" and not self.refresh_token_cookie_secure:
+            raise ValueError("REFRESH_TOKEN_COOKIE_SECURE must be true when SameSite is none.")
+        if "*" in self.cors_origins:
+            raise ValueError("BACKEND_CORS_ORIGINS cannot contain * when credentials are enabled.")
         return self
 
     @property

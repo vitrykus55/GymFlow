@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import InvalidAccessTokenError, decode_access_token
 from app.db.session import get_db
 from app.models.user import User
@@ -43,3 +44,10 @@ def _raise_invalid_credentials() -> None:
         detail="Could not validate credentials.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def validate_cookie_auth_origin(request: Request) -> None:
+    """Reject cookie-authenticated browser mutations from untrusted origins."""
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in settings.cors_origins:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid request origin.")

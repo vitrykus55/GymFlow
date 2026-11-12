@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from secrets import token_urlsafe
 from typing import Any
 
 import jwt
@@ -27,6 +28,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def hash_refresh_token(token: str) -> str:
     """Return the SHA-256 digest used to persist an opaque refresh token."""
     return sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_refresh_token() -> str:
+    """Return a URL-safe opaque token backed by 256 bits of randomness."""
+    return token_urlsafe(32)
 
 
 def create_access_token(user_id: int) -> str:

@@ -51,6 +51,14 @@ def test_hash_refresh_token_returns_expected_sha256_digest() -> None:
     assert security.hash_refresh_token(token) == token_hash
 
 
+def test_generate_refresh_token_returns_url_safe_256_bit_secret() -> None:
+    token = security.generate_refresh_token()
+
+    assert len(token) >= 43
+    assert token.replace("-", "").replace("_", "").isalnum()
+    assert security.generate_refresh_token() != token
+
+
 def test_create_and_decode_access_token() -> None:
     token = security.create_access_token(user_id=42)
 
