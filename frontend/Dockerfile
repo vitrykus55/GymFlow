@@ -9,7 +9,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm ci
 
 # ---------- development (hot reload, used by docker-compose.yml) ----------
 FROM deps AS dev

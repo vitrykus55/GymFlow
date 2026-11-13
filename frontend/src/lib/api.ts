@@ -16,12 +16,38 @@ export function getApiUrl(): string {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(`${getApiUrl()}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    credentials: init?.credentials ?? "include",
+    headers,
   });
+
   if (!res.ok) {
-    throw new Error(`API ${res.status}: ${res.statusText}`);
+    let message = `Request failed (${res.status})`;
+    try {
+      const body: unknown = await res.json();
+      if (
+        typeof body === "object" &&
+        body !== null &&
+        "detail" in body &&
+        typeof body.detail === "string"
+      ) {
+        message = body.detail;
+      }
+    } catch {
+      // Keep the status-based message when the server does not return JSON.
+    }
+    throw new Error(message);
   }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }

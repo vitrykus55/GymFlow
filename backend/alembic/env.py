@@ -5,6 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from alembic import context
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 
 config = context.config
 
@@ -32,7 +34,7 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations without creating an Engine."""
     context.configure(
-        url=settings.database_url,
+        url=settings.migration_database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -44,16 +46,28 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations using the application's configured SQLAlchemy Engine."""
-    with engine.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,
+    """Prefer a direct Neon connection for schema changes."""
+    connectable = engine
+    if settings.migration_database_url != settings.database_url:
+        connectable = create_engine(
+            settings.migration_database_url,
+            poolclass=NullPool,
+            pool_pre_ping=True,
         )
 
-        with context.begin_transaction():
-            context.run_migrations()
+    try:
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+            )
+
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        if connectable is not engine:
+            connectable.dispose()
 
 
 if context.is_offline_mode():
