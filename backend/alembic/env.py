@@ -3,10 +3,10 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from dotenv import load_dotenv
-
-from alembic import context
 from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
+
+from alembic import context
 
 config = context.config
 
