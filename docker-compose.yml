@@ -9,6 +9,7 @@ services:
     environment:
       ENVIRONMENT: development
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (Neon PostgreSQL URL required)}
+      DATABASE_URL_UNPOOLED: ${DATABASE_URL_UNPOOLED:-}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}

@@ -23,7 +23,7 @@ If you already have the repository, open its root directory instead. Create the 
 Copy-Item .env.example .env
 ```
 
-Set `DATABASE_URL` in the root `.env` to your Neon PostgreSQL connection URL. Use the `postgresql+psycopg` driver and require TLS with `sslmode=require`. Generate `JWT_SECRET_KEY` with `openssl rand -hex 32` and keep it private. Do not paste credentials or secrets into documentation, source files, or Git. Keep `.env` on your machine; it must never be committed.
+Set `DATABASE_URL` in the root `.env` to the Neon pooled URL for application traffic, and `DATABASE_URL_UNPOOLED` to the direct URL for migrations. Use the `postgresql+psycopg` driver and require TLS with `sslmode=require`; both URLs must point to the same Neon branch. Generate `JWT_SECRET_KEY` with `python -c "import secrets; print(secrets.token_hex(32))"` and keep it private. Do not paste credentials or secrets into documentation, source files, or Git. Keep `.env` on your machine; it must never be committed.
 
 The development Compose stack requires `DATABASE_URL` and `JWT_SECRET_KEY`. `BACKEND_CORS_ORIGINS` defaults to `http://localhost:3000`, and `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`. The production-like Compose file uses `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` for its own PostgreSQL container; it does not connect that container to Neon.
 
@@ -86,19 +86,21 @@ The development stack publishes the Backend on `localhost:8000` and the Frontend
 
 The development application uses Neon PostgreSQL. Alembic manages versioned schema changes using SQLAlchemy model metadata and migration revision files. The configuration is in `alembic.ini`; run Alembic commands from `backend/` so it finds that configuration.
 
+The project has a baseline migration and a migration for refresh-token storage. Alembic uses `DATABASE_URL_UNPOOLED` when it is set, so schema changes use a direct Neon connection rather than the pooled application URL.
+
 Inspect the database's recorded migration revision:
 
 ```powershell
 python -m alembic current
 ```
 
-When migration revision files exist, apply them with:
+For a new, empty database, apply the migrations with:
 
 ```powershell
 python -m alembic upgrade head
 ```
 
-There are currently no migration revision files in `alembic/versions/`, so there is no project migration to apply yet. Do not run schema changes against the shared Neon database without following the team's review and deployment process.
+The baseline migration creates the initial GymFlow tables. Do not run it blindly on a database that already contains tables or data: first verify the live schema and Alembic revision with the team. Do not apply schema changes to a shared Neon database without following the team's review and deployment process.
 
 After adding SQLAlchemy models, ensure their modules are imported by `app/models` so they register with `Base.metadata`. Then generate a candidate revision:
 
@@ -117,14 +119,14 @@ python -m pytest
 python -m ruff check app tests
 ```
 
-The optional PostgreSQL integration test performs a read-only `SELECT 1`. It requires a dedicated test database. Set `TEST_DATABASE_URL` in the PowerShell session, then from the repository root run the test in the development Backend container:
+The optional PostgreSQL integration tests check connectivity and exercise real client registration. Registration writes a unique test user and removes it afterward. They require a dedicated, already-migrated test database. Set `TEST_DATABASE_URL` in the PowerShell session, then from the repository root run the tests in the development Backend container:
 
 ```powershell
 $env:TEST_DATABASE_URL = "postgresql+psycopg://USER:PASSWORD@TEST_HOST/TEST_DATABASE?sslmode=require"
 docker compose exec -e TEST_DATABASE_URL backend python -m pytest -m integration
 ```
 
-Replace the placeholders locally; never put real credentials in this guide. `TEST_DATABASE_URL` must point to a separate test database, never the shared Neon application database. The integration test also refuses to query when its host, port, and database match `DATABASE_URL`. The development Compose Backend must be running first.
+Replace the placeholder locally; never put real credentials in this guide. `TEST_DATABASE_URL` must point to a separate test database, never the shared Neon application database. The tests refuse to run when its host, port, and database match `DATABASE_URL`. The development Compose Backend must be running first.
 
 ## Backend structure
 
@@ -141,5 +143,5 @@ Replace the placeholders locally; never put real credentials in this guide. `TES
 - **The API cannot connect to Neon:** check the hostname, database name, network access, and TLS requirement (`sslmode=require`). Do not share the connection URL in logs or chat.
 - **Docker commands cannot reach the engine:** start Docker Desktop and wait until its Linux container engine is ready.
 - **A Python package or module is missing:** activate `backend/.venv` and install `requirements-dev.txt` for development. Check that Python 3.12 or newer is selected.
-- **Alembic cannot find its configuration or reports no head:** run it from `backend/`. There are currently no migration revisions, so `upgrade head` has nothing to apply until a reviewed revision is added.
+- **Alembic cannot find its configuration or reports no head:** run it from `backend/` and check the migration files under `alembic/versions/`.
 - **Autogenerate proposes dropping existing tables:** the SQLAlchemy metadata may not include all existing Neon tables. Review the generated revision manually and do not apply unintended drops.

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     database_url: str = "postgresql+psycopg://gymflow:gymflow@localhost:5432/gymflow"
+    database_url_unpooled: str | None = None
 
     # Comma-separated list, e.g. "http://localhost:3000,https://gymflow.app"
     backend_cors_origins: str = "http://localhost:3000"
@@ -53,6 +54,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.database_url_unpooled or self.database_url
 
 
 @lru_cache
