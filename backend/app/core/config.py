@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     refresh_token_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     refresh_token_cookie_domain: str | None = None
 
+    @field_validator("database_url", "database_url_unpooled")
+    @classmethod
+    def use_psycopg_driver(cls, value: str | None) -> str | None:
+        """Accept plain postgres:// URLs (as copied from Neon) and use the psycopg driver."""
+        if value is None:
+            return value
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value.removeprefix(prefix)
+        return value
+
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret_key(cls, value: SecretStr | None) -> SecretStr | None:
