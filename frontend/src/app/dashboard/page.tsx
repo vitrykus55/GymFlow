@@ -50,7 +50,13 @@ export default function OverviewPage() {
     ? `Today, ${formatTime(next.getHours(), next.getMinutes())}`
     : `${next.toLocaleDateString("en-US", { weekday: "short" })}, ${formatTime(next.getHours(), next.getMinutes())}`;
 
-  const weekLabel = `${days[0].date.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – ${days[6].date.toLocaleDateString("en-US", { day: "numeric", year: "numeric" })}`;
+  const weekStartLabel = days[0].date.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const weekEnd = days[6].date;
+  const weekEndLabel =
+    weekEnd.getMonth() === days[0].date.getMonth()
+      ? String(weekEnd.getDate())
+      : weekEnd.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const weekLabel = `${weekStartLabel} – ${weekEndLabel}, ${weekEnd.getFullYear()}`;
   const renewsOn = addDays(today, membership.renewsInDays).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",

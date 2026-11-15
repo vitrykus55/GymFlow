@@ -8,7 +8,7 @@ export type Session = {
   minute?: number;
 };
 
-export const weeklyTarget = 3;
+export const weeklyTarget = 4;
 export const trainingStreakWeeks = 4;
 export const goal = "Build strength";
 
