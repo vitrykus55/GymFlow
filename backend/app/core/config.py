@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     database_url: str = "postgresql+psycopg://gymflow:gymflow@localhost:5432/gymflow"
+    database_url_unpooled: str | None = None
 
     # Comma-separated list, e.g. "http://localhost:3000,https://gymflow.app"
     backend_cors_origins: str = "http://localhost:3000"
@@ -30,6 +31,17 @@ class Settings(BaseSettings):
     refresh_token_cookie_secure: bool | None = None
     refresh_token_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     refresh_token_cookie_domain: str | None = None
+
+    @field_validator("database_url", "database_url_unpooled")
+    @classmethod
+    def use_psycopg_driver(cls, value: str | None) -> str | None:
+        """Accept plain postgres:// URLs (as copied from Neon) and use the psycopg driver."""
+        if value is None:
+            return value
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value.removeprefix(prefix)
+        return value
 
     @field_validator("jwt_secret_key")
     @classmethod
@@ -53,6 +65,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.database_url_unpooled or self.database_url
 
 
 @lru_cache
