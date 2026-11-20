@@ -87,9 +87,10 @@ def test_expected_tables_and_primary_keys_are_registered() -> None:
         ("class_types", "duration_minutes", Integer, False, None),
         ("class_sessions", "room", String, True, 50),
         ("class_sessions", "capacity", Integer, False, None),
-        ("membership_types", "duration_days", Integer, False, None),
+        ("membership_types", "duration_days", Integer, True, None),
         ("membership_types", "max_entries", Integer, True, None),
-        ("memberships", "start_date", Date, False, None),
+        ("memberships", "starts_at", DateTime, False, None),
+        ("memberships", "expires_at", DateTime, False, None),
         ("payments", "currency", String, False, 3),
         ("check_ins", "membership_id", BigInteger, True, None),
     ],
@@ -116,7 +117,8 @@ def test_numeric_columns_preserve_precision_and_scale() -> None:
     for column in (membership_price, payment_amount):
         assert isinstance(column.type, Numeric)
         assert (column.type.precision, column.type.scale) == (10, 2)
-        assert column.nullable is False
+    assert membership_price.nullable is True
+    assert payment_amount.nullable is False
 
 
 def test_timestamp_columns_are_timezone_aware() -> None:
@@ -133,6 +135,12 @@ def test_timestamp_columns_are_timezone_aware() -> None:
         ("check_ins", "checked_in_at"),
         ("check_ins", "checked_out_at"),
         ("payments", "paid_at"),
+        ("membership_types", "created_at"),
+        ("membership_types", "updated_at"),
+        ("memberships", "starts_at"),
+        ("memberships", "expires_at"),
+        ("memberships", "created_at"),
+        ("memberships", "updated_at"),
     )
 
     for table_name, column_name in timestamp_columns:
@@ -144,8 +152,13 @@ def test_timestamp_columns_are_timezone_aware() -> None:
 @pytest.mark.parametrize(
     ("table_name", "column_name", "enum_name", "values"),
     [
-        ("users", "role", "user_role", ["client", "trainer", "admin"]),
-        ("memberships", "status", "membership_status", ["active", "expired", "cancelled"]),
+        ("users", "role", "user_role", ["client", "coach"]),
+        (
+            "memberships",
+            "status",
+            "membership_status",
+            ["pending", "active", "expired", "cancelled"],
+        ),
         ("payments", "status", "payment_status", ["pending", "paid", "failed", "refunded"]),
         ("payments", "method", "payment_method", ["card", "cash", "transfer", "simulated"]),
         (
@@ -267,7 +280,11 @@ def test_foreign_keys_reference_expected_columns_and_on_delete_actions() -> None
     [
         ("bookings", {"ux_booking_session_user"}, UniqueConstraint),
         ("class_types", {"class_types_name_key"}, UniqueConstraint),
-        ("membership_types", {"membership_types_name_key"}, UniqueConstraint),
+        (
+            "membership_types",
+            {"membership_types_name_key", "uq_membership_types_code"},
+            UniqueConstraint,
+        ),
         ("check_ins", {"ck_checkout_after_checkin"}, CheckConstraint),
         ("class_sessions", {"ck_session_capacity", "ck_session_time"}, CheckConstraint),
         (
@@ -284,7 +301,7 @@ def test_foreign_keys_reference_expected_columns_and_on_delete_actions() -> None
             },
             CheckConstraint,
         ),
-        ("memberships", {"ck_membership_dates"}, CheckConstraint),
+        ("memberships", {"ck_membership_timestamps"}, CheckConstraint),
         ("payments", {"ck_payments_amount"}, CheckConstraint),
         ("auth_refresh_tokens", {"uq_auth_refresh_tokens_token_hash"}, UniqueConstraint),
     ],
@@ -300,7 +317,11 @@ def test_important_indexes_and_functional_email_index_are_registered() -> None:
         "bookings": {"ix_bookings_session", "ix_bookings_user_id"},
         "check_ins": {"ix_check_ins_checked_in_at", "ix_check_ins_user_time"},
         "class_sessions": {"ix_class_sessions_starts_at", "ix_class_sessions_trainer"},
-        "memberships": {"ix_memberships_status_end", "ix_memberships_user_id"},
+        "memberships": {
+            "ix_memberships_status_expires",
+            "ix_memberships_user_id",
+            "uq_memberships_active_user_type",
+        },
         "payments": {"ix_payments_paid_at", "ix_payments_user_id"},
         "users": {"ix_users_role", "ux_users_email_lower"},
         "auth_refresh_tokens": {

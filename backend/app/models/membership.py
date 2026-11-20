@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -20,9 +20,16 @@ class Membership(Base):
     __tablename__ = "memberships"
 
     __table_args__ = (
-        CheckConstraint("end_date >= start_date", name="ck_membership_dates"),
-        Index("ix_memberships_status_end", "status", "end_date"),
+        CheckConstraint("expires_at > starts_at", name="ck_membership_timestamps"),
+        Index("ix_memberships_status_expires", "status", "expires_at"),
         Index("ix_memberships_user_id", "user_id"),
+        Index(
+            "uq_memberships_active_user_type",
+            "user_id",
+            "membership_type_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -33,12 +40,15 @@ class Membership(Base):
         ForeignKey("membership_types.id", name="memberships_membership_type_id_fkey"),
         nullable=False,
     )
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[MembershipStatus] = mapped_column(
         membership_status_enum, nullable=False, server_default=text("'active'")
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
 
