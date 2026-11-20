@@ -173,6 +173,7 @@ def test_activate_pending_coach_membership_transitions_it_to_active() -> None:
 
 def test_cancellation_preserves_membership_history_and_rejects_invalid_transition() -> None:
     db = InMemoryMembershipLifecycleSession()
+    db.user.role = UserRole.COACH
     starts_at, expires_at = _interval()
     membership = Membership(
         id=1,
@@ -188,12 +189,14 @@ def test_cancellation_preserves_membership_history_and_rejects_invalid_transitio
 
     assert cancelled is membership
     assert membership.status is MembershipStatus.CANCELLED
+    assert db.user.role is UserRole.COACH
     with pytest.raises(MembershipLifecycleError, match="cannot be cancelled"):
         cancel_membership(db, membership_id=membership.id)
 
 
 def test_expire_memberships_persists_expired_state() -> None:
     db = InMemoryMembershipLifecycleSession()
+    db.user.role = UserRole.COACH
     starts_at, expires_at = _interval()
     membership = Membership(
         id=1,
@@ -210,6 +213,7 @@ def test_expire_memberships_persists_expired_state() -> None:
     assert expired_count == 1
     assert membership.status is MembershipStatus.EXPIRED
     assert membership.updated_at == expires_at
+    assert db.user.role is UserRole.COACH
     assert db.commit_calls == 1
 
 
@@ -226,6 +230,35 @@ def test_active_membership_check_rejects_expiration_boundary() -> None:
 
     assert is_membership_active(membership, now=expires_at - timedelta(microseconds=1)) is True
     assert is_membership_active(membership, now=expires_at) is False
+
+
+@pytest.mark.parametrize("status", [MembershipStatus.CANCELLED, MembershipStatus.EXPIRED])
+def test_active_membership_check_rejects_inactive_statuses(status: MembershipStatus) -> None:
+    starts_at, expires_at = _interval()
+    membership = Membership(
+        id=1,
+        user_id=1,
+        membership_type_id=1,
+        status=status,
+        starts_at=starts_at,
+        expires_at=expires_at,
+    )
+
+    assert is_membership_active(membership, now=starts_at + timedelta(days=1)) is False
+
+
+def test_active_membership_check_rejects_membership_before_start() -> None:
+    starts_at, expires_at = _interval()
+    membership = Membership(
+        id=1,
+        user_id=1,
+        membership_type_id=1,
+        status=MembershipStatus.ACTIVE,
+        starts_at=starts_at,
+        expires_at=expires_at,
+    )
+
+    assert is_membership_active(membership, now=starts_at - timedelta(microseconds=1)) is False
 
 
 def test_has_active_coach_membership_uses_database_result() -> None:

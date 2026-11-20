@@ -204,3 +204,23 @@ def test_get_current_membership_requires_authentication(client: TestClient) -> N
 
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_membership_activation_is_not_exposed_as_a_public_api(client: TestClient) -> None:
+    response = client.post("/api/v1/memberships/activate")
+
+    assert response.status_code == 404
+
+
+def test_profile_update_rejects_attempt_to_grant_coach_role(
+    client: TestClient, membership_session: InMemoryMembershipSession
+) -> None:
+    user = membership_session.add_user(email="ada@example.com")
+
+    response = client.patch(
+        "/api/v1/users/me",
+        headers=_authorization_header(user.id),
+        json={"role": "coach"},
+    )
+
+    assert response.status_code == 422
