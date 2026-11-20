@@ -33,6 +33,13 @@ class UpdateUserProfileRequest(BaseModel):
     def normalize_email(cls, value: Any) -> Any:
         return value.strip().lower() if isinstance(value, str) else value
 
+    @field_validator("email", "first_name", "last_name")
+    @classmethod
+    def reject_null_required_fields(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("This field cannot be null.")
+        return value
+
     @field_validator("first_name", "last_name", "phone", mode="before")
     @classmethod
     def strip_text_fields(cls, value: Any) -> Any:

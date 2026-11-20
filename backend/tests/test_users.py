@@ -234,6 +234,9 @@ def test_update_current_user_profile_cannot_modify_another_users_profile(
     [
         {"first_name": " "},
         {"email": "not-an-email"},
+        {"email": None},
+        {"first_name": None},
+        {"last_name": None},
         {"role": "admin"},
         {"id": 2},
         {"is_active": False},
