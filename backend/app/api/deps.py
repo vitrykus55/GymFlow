@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import InvalidAccessTokenError, decode_access_token
 from app.db.session import get_db
+from app.models.enums import UserRole
 from app.models.user import User
+from app.services.memberships import has_active_coach_membership
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -30,6 +32,24 @@ def get_current_user(
     if user is None or not user.is_active:
         _raise_invalid_credentials()
     return user
+
+
+def get_current_coach(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    """Return a Coach who also has an active Coach Membership entitlement."""
+    if current_user.role is not UserRole.COACH:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Coach status is required.",
+        )
+    if not has_active_coach_membership(db, user_id=current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="An active Coach Membership is required.",
+        )
+    return current_user
 
 
 def _parse_user_id(subject: str) -> int:
