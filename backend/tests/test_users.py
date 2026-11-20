@@ -188,6 +188,23 @@ def test_update_current_user_profile_preserves_omitted_fields(
     assert user.birth_date == date(1815, 12, 10)
 
 
+def test_update_current_user_profile_clears_explicit_nullable_fields(
+    client: TestClient, user_session: InMemoryUserSession
+) -> None:
+    user = user_session.add_user()
+
+    response = client.patch(
+        "/api/v1/users/me",
+        headers=_authorization_header(user.id),
+        json={"phone": None, "birth_date": None},
+    )
+
+    assert response.status_code == 200
+    assert user.phone is None
+    assert user.birth_date is None
+    assert user.email == "ada@example.com"
+
+
 def test_update_current_user_profile_rejects_unauthenticated_requests(client: TestClient) -> None:
     response = client.patch("/api/v1/users/me", json={"first_name": "Augusta"})
 
@@ -251,6 +268,39 @@ def test_update_current_user_profile_rejects_duplicate_email(
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Email already registered."}
+
+
+def test_update_current_user_profile_allows_the_existing_email(
+    client: TestClient, user_session: InMemoryUserSession
+) -> None:
+    user = user_session.add_user()
+
+    response = client.patch(
+        "/api/v1/users/me",
+        headers=_authorization_header(user.id),
+        json={"email": " ADA@EXAMPLE.COM "},
+    )
+
+    assert response.status_code == 200
+    assert user.email == "ada@example.com"
+
+
+@pytest.mark.parametrize("phone", ["123456", "abc", "+48abc", "0048501234567"])
+def test_update_current_user_profile_rejects_invalid_phone_numbers(
+    client: TestClient,
+    user_session: InMemoryUserSession,
+    phone: str,
+) -> None:
+    user = user_session.add_user()
+
+    response = client.patch(
+        "/api/v1/users/me",
+        headers=_authorization_header(user.id),
+        json={"phone": phone},
+    )
+
+    assert response.status_code == 422
+    assert user.phone == "+48123123123"
 
 
 def test_update_current_user_profile_handles_concurrent_duplicate_email(

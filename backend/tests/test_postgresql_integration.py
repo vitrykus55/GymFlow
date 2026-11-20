@@ -10,11 +10,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
+from app.core import security
 from app.core.config import settings
 from app.core.security import verify_password
 from app.db.session import get_db
@@ -108,4 +110,77 @@ def test_registration_persists_client_to_test_postgresql() -> None:
             if user is not None:
                 db.delete(user)
                 db.commit()
+        engine.dispose()
+
+
+@pytest.mark.integration
+def test_profile_update_persists_for_the_authenticated_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_database_url = os.getenv("TEST_DATABASE_URL")
+    if not test_database_url:
+        pytest.skip("Set TEST_DATABASE_URL to a dedicated PostgreSQL test database.")
+
+    test_url = make_url(test_database_url)
+    if test_url.get_backend_name() != "postgresql":
+        pytest.fail("TEST_DATABASE_URL must use PostgreSQL.")
+    if _is_same_database(test_database_url):
+        pytest.skip("TEST_DATABASE_URL matches DATABASE_URL; refusing shared-database writes.")
+
+    monkeypatch.setattr(
+        security.settings,
+        "jwt_secret_key",
+        SecretStr("test-jwt-secret-key-that-is-at-least-32-characters-long"),
+    )
+    engine = create_engine(test_url, poolclass=NullPool, pool_pre_ping=True)
+    test_sessions = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    email = f"gymflow-profile-{uuid4().hex}@example.com"
+    previous_override = app.dependency_overrides.get(get_db)
+    user_id: int | None = None
+
+    def override_get_db():
+        with test_sessions() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            registration_response = client.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": email,
+                    "password": "integration-test-password",
+                    "first_name": "Integration",
+                    "last_name": "Client",
+                },
+            )
+            assert registration_response.status_code == 201
+            user_id = registration_response.json()["id"]
+
+            response = client.patch(
+                "/api/v1/users/me",
+                headers={"Authorization": f"Bearer {security.create_access_token(user_id)}"},
+                json={"first_name": "Updated", "phone": "+48 501 234 567"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["first_name"] == "Updated"
+        assert response.json()["phone"] == "+48501234567"
+        with Session(engine) as db:
+            user = db.get(User, user_id)
+            assert user is not None
+            assert user.first_name == "Updated"
+            assert user.phone == "+48501234567"
+    finally:
+        if previous_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous_override
+
+        if user_id is not None:
+            with Session(engine) as db:
+                user = db.get(User, user_id)
+                if user is not None:
+                    db.delete(user)
+                    db.commit()
         engine.dispose()
