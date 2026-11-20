@@ -147,6 +147,104 @@ The endpoint returns the complete updated profile using the same response shape 
 
 Phone numbers are backend-validated with `phonenumbers` during both registration and profile updates. Send an internationally formatted number with its country code, for example `+48 501 234 567` or `+380 50 123 4567`; valid values are stored and returned in E.164 format (`+48501234567`, `+380501234567`). Validation confirms format and plausibility only—it does not verify phone ownership or send SMS messages.
 
+## Coach memberships
+
+Coach access is an entitlement, not a profile field. A user receives the `coach` role only through
+trusted membership lifecycle logic, and every Coach-only operation must also require an active Coach
+Membership. The role remains in historical records after expiry or cancellation; access is revoked
+because the membership check fails.
+
+### Membership types
+
+`membership_types` stores available products. Each type has a stable `code`; the Coach product is
+always identified by `coach`, never by its display name. The migration seeds this type with no price
+or duration because neither has been defined. Those fields remain nullable until a product decision
+is made. Inactive types are retained for history but excluded from the public catalog.
+
+### User memberships and lifecycle
+
+`memberships` records a user's entitlement and preserves cancelled and expired history. Timestamps
+are timezone-aware UTC values, and the valid interval is `[starts_at, expires_at)`: a membership is
+not active at the exact `expires_at` boundary. Statuses are `pending`, `active`, `expired`, and
+`cancelled`. The database allows only one stored active membership for the same user and type.
+
+Trusted application code in `app.services.memberships` provides these operations:
+
+- `create_membership(...)` creates a pending entitlement.
+- `activate_coach_membership(...)` activates Coach access transactionally and sets the user's role
+  to `coach`. Repeated activation while an active Coach Membership exists returns that membership.
+- `cancel_membership(...)` transitions pending or active records to `cancelled` without deletion.
+- `expire_memberships(...)` persists expiration for elapsed active records.
+- `is_membership_active(...)` and `has_active_coach_membership(...)` check timestamps directly, so
+  stale stored `active` status never grants access before periodic expiry processing runs.
+
+No scheduler is part of this backend. A future worker can call `expire_memberships(...)` regularly to
+keep statuses current, but authorization remains correct without it.
+
+### Future payment integration
+
+Payment processing is **not implemented**. There are no checkout, payment-confirmation, webhook, or
+public membership-activation endpoints. A future trusted payment handler must verify payment
+independently, derive the entitlement interval from approved product rules, then call
+`activate_coach_membership(db, user_id=..., starts_at=..., expires_at=...)` inside the backend. It
+may first create a pending record with `create_membership(...)` and pass it as `pending_membership`.
+Provider transaction or idempotency identifiers can be added at that boundary later without coupling
+the membership domain to a provider today.
+
+### Public membership API
+
+`GET /api/v1/membership-types` is public and returns active membership types only:
+
+```json
+[
+  {
+    "id": 1,
+    "code": "coach",
+    "name": "Coach Membership",
+    "description": "Grants access to Coach functionality while active.",
+    "duration_days": null,
+    "price": null,
+    "max_entries": null
+  }
+]
+```
+
+`GET /api/v1/users/me/membership` requires `Authorization: Bearer <access_token>` and always uses
+the JWT subject. It returns the caller's most recently created membership (or `null`) plus current
+Coach entitlement:
+
+```json
+{
+  "membership": {
+    "id": 12,
+    "status": "active",
+    "starts_at": "2026-11-20T12:00:00Z",
+    "expires_at": "2026-12-20T12:00:00Z",
+    "membership_type": {
+      "id": 1,
+      "code": "coach",
+      "name": "Coach Membership",
+      "description": "Grants access to Coach functionality while active.",
+      "duration_days": null,
+      "price": null,
+      "max_entries": null
+    }
+  },
+  "has_active_coach_membership": true
+}
+```
+
+For users without membership, the response is
+`{"membership": null, "has_active_coach_membership": false}`. There is deliberately no public
+`POST` endpoint for activation, cancellation, membership status updates, or type management.
+
+### Coach authorization
+
+Use `Depends(get_current_coach)` from `app.api.deps` on every future Coach-specific route. It first
+requires a normal JWT-authenticated active user, then checks both `role == coach` and an active Coach
+Membership. Missing role, pending, cancelled, expired, or elapsed memberships return `403 Forbidden`;
+invalid or missing credentials return the existing `401 Unauthorized` response.
+
 ## Tests and code quality
 
 Run the test suite and Ruff from `backend/`:
