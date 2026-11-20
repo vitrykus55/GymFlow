@@ -1,11 +1,16 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.membership import Membership
+from app.models.membership_type import COACH_MEMBERSHIP_CODE
 from app.models.user import User
+from app.schemas.memberships import CurrentMembershipResponse, UserMembershipResponse
 from app.schemas.users import UpdateUserProfileRequest, UserProfileResponse
 from app.services.auth import EmailAlreadyRegisteredError
 from app.services.users import update_user_profile
@@ -18,6 +23,42 @@ def get_current_user_profile(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> UserProfileResponse:
     return UserProfileResponse.model_validate(current_user)
+
+
+@router.get("/me/membership", response_model=CurrentMembershipResponse)
+def get_current_user_membership(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CurrentMembershipResponse:
+    membership = db.scalar(
+        select(Membership)
+        .options(joinedload(Membership.membership_type))
+        .where(Membership.user_id == current_user.id)
+        .order_by(Membership.created_at.desc(), Membership.id.desc())
+        .limit(1)
+    )
+    now = datetime.now(UTC)
+    has_active_coach_membership = (
+        db.scalar(
+            select(Membership.id)
+            .join(Membership.membership_type)
+            .where(
+                Membership.user_id == current_user.id,
+                Membership.status == "active",
+                Membership.starts_at <= now,
+                Membership.expires_at > now,
+                Membership.membership_type.has(code=COACH_MEMBERSHIP_CODE),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+    return CurrentMembershipResponse(
+        membership=(
+            UserMembershipResponse.model_validate(membership) if membership is not None else None
+        ),
+        has_active_coach_membership=has_active_coach_membership,
+    )
 
 
 @router.patch("/me", response_model=UserProfileResponse)
