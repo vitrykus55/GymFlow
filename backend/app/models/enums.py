@@ -7,11 +7,11 @@ from sqlalchemy.dialects.postgresql import ENUM
 
 class UserRole(StrEnum):
     CLIENT = "client"
-    TRAINER = "trainer"
-    ADMIN = "admin"
+    COACH = "coach"
 
 
 class MembershipStatus(StrEnum):
+    PENDING = "pending"
     ACTIVE = "active"
     EXPIRED = "expired"
     CANCELLED = "cancelled"
