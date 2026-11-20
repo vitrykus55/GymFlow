@@ -3,6 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.phone import normalize_phone_number
 from app.models.enums import UserRole
 
 
@@ -36,3 +37,8 @@ class UpdateUserProfileRequest(BaseModel):
     @classmethod
     def strip_text_fields(cls, value: Any) -> Any:
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        return normalize_phone_number(value) if value is not None else None

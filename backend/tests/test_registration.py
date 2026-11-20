@@ -70,7 +70,7 @@ def registration_payload() -> dict[str, str]:
         "password": "correct horse battery staple",
         "first_name": "Ada",
         "last_name": "Lovelace",
-        "phone": "+48123123123",
+        "phone": "+48 501 234 567",
         "birth_date": "1815-12-10",
     }
 
@@ -94,7 +94,19 @@ def test_register_user_creates_client_with_hashed_password(
     assert stored_user.password_hash != registration_payload["password"]
     assert verify_password(registration_payload["password"], stored_user.password_hash) is True
     assert str(stored_user.role) == "client"
+    assert stored_user.phone == "+48501234567"
     assert "password_hash" not in response.json()
+
+
+@pytest.mark.parametrize("phone", ["123456", "abc", "+48abc", "0048501234567"])
+def test_register_user_rejects_invalid_phone_numbers(
+    client: TestClient,
+    registration_payload: dict[str, str],
+    phone: str,
+) -> None:
+    response = client.post("/api/v1/auth/register", json={**registration_payload, "phone": phone})
+
+    assert response.status_code == 422
 
 
 def test_register_user_rejects_duplicate_email(

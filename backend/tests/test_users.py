@@ -147,7 +147,7 @@ def test_update_current_user_profile_updates_all_allowed_fields(
             "email": "ada.lovelace@example.com",
             "first_name": "Augusta",
             "last_name": "King",
-            "phone": "+380501234567",
+            "phone": "+380 50 123 4567",
             "birth_date": "1815-12-11",
         },
     )

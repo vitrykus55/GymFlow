@@ -56,3 +56,24 @@ def test_profile_update_schema_parses_birth_date() -> None:
     profile_update = UpdateUserProfileRequest.model_validate({"birth_date": "1815-12-10"})
 
     assert profile_update.birth_date == date(1815, 12, 10)
+
+
+@pytest.mark.parametrize(
+    ("phone", "expected_phone"),
+    [
+        ("+48 501 234 567", "+48501234567"),
+        ("+380 50 123 4567", "+380501234567"),
+    ],
+)
+def test_profile_update_schema_normalizes_international_phone_numbers(
+    phone: str, expected_phone: str
+) -> None:
+    profile_update = UpdateUserProfileRequest.model_validate({"phone": phone})
+
+    assert profile_update.phone == expected_phone
+
+
+@pytest.mark.parametrize("phone", ["123456", "abc", "+48abc", "0048501234567"])
+def test_profile_update_schema_rejects_invalid_phone_numbers(phone: str) -> None:
+    with pytest.raises(ValidationError):
+        UpdateUserProfileRequest.model_validate({"phone": phone})
