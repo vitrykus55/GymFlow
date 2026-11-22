@@ -141,15 +141,13 @@ export function CoachOverview({ membership }: Props) {
       </div>
 
       <aside className="space-y-6">
-        <MembershipCard {...membership} title="Coach membership" />
+        <MembershipCard {...membership} />
 
         <section className="rounded-3xl border border-line bg-surface p-6">
           <h2 className="flex items-center gap-2 text-xl font-extrabold">
             <CardIcon /> Renewal reminders
           </h2>
-          <p className="mt-2 text-sm text-muted">
-            {coachStats.renewals} client memberships end this week.
-          </p>
+          <p className="mt-2 text-sm text-muted">Clients running low on sessions.</p>
           <ul className="mt-4 space-y-2 text-sm">
             {coachClients
               .filter((c) => c.renewSoon)
@@ -168,12 +166,12 @@ export function CoachOverview({ membership }: Props) {
 
 function CoachStat({ icon, value, label }: { icon: ReactNode; value: ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-3 px-2 lg:px-5 lg:first:pl-2">
-      <span className="text-ink/70">{icon}</span>
-      <div>
+    <div className="px-3 lg:px-5">
+      <div className="flex items-center gap-2.5">
+        <span className="text-ink/70">{icon}</span>
         <p className="text-3xl font-extrabold tabular-nums">{value}</p>
-        <p className="text-sm text-muted">{label}</p>
       </div>
+      <p className="mt-1 text-sm text-muted">{label}</p>
     </div>
   );
 }

@@ -18,18 +18,17 @@ type Props = {
   data: CurrentMembership | null;
   loading: boolean;
   error: string | null;
-  title?: string;
 };
 
 /** Dark membership card (design: "Your membership") driven by GET /users/me/membership. */
-export function MembershipCard({ data, loading, error, title = "Your membership" }: Props) {
+export function MembershipCard({ data, loading, error }: Props) {
   const [today] = useState(now);
   const membership = data?.membership ?? null;
 
   return (
     <section className="rounded-3xl bg-night p-6 text-white">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold">{title}</h2>
+        <h2 className="text-xl font-bold">Your membership</h2>
         {membership && (
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -70,7 +69,7 @@ export function MembershipCard({ data, loading, error, title = "Your membership"
         type="button"
         disabled
         title="Coming soon"
-        className="mt-5 w-full rounded-full bg-white py-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-5 w-full rounded-full bg-white/10 py-3 text-sm font-bold text-white/70 ring-1 ring-white/15 disabled:cursor-not-allowed"
       >
         {membership ? "Manage membership" : "Browse plans"} · soon
       </button>

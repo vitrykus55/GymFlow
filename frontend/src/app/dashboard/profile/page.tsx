@@ -299,10 +299,7 @@ export default function ProfilePage() {
             </p>
           </section>
 
-          <MembershipCard
-            {...membership}
-            title={role === "coach" ? "Coach membership" : "Your membership"}
-          />
+          <MembershipCard {...membership} />
         </aside>
       </div>
     </div>

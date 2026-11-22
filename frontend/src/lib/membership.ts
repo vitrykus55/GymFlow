@@ -16,6 +16,11 @@ type MembershipState = {
 export function useMembership(): MembershipState {
   const { authFetch, isDemo, user } = useAuth();
   const [state, setState] = useState<MembershipState>({ data: null, error: null, loading: true });
+  // Built once so the demo dates don't shift between renders.
+  const [demo] = useState(() => ({
+    client: demoMembership("client"),
+    coach: demoMembership("coach"),
+  }));
 
   useEffect(() => {
     if (isDemo) return;
@@ -35,7 +40,7 @@ export function useMembership(): MembershipState {
   }, [authFetch, isDemo]);
 
   if (isDemo) {
-    return { data: demoMembership(user?.role ?? "client"), error: null, loading: false };
+    return { data: demo[user?.role ?? "client"] ?? demo.client, error: null, loading: false };
   }
   return state;
 }
