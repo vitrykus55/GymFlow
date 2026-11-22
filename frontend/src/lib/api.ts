@@ -13,6 +13,36 @@ export function getApiUrl(): string {
 
 const UNAVAILABLE = "Server is unavailable. Please try again later.";
 
+const FIELD_MESSAGES: Record<string, string> = {
+  email: "Enter a valid email address.",
+};
+
+/** Error thrown for any failed API call. `fieldErrors` holds 422 validation messages by field. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly fieldErrors: Record<string, string>;
+
+  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.fieldErrors = fieldErrors;
+  }
+}
+
+type ValidationIssue = { loc?: unknown[]; msg?: unknown };
+
+function parseValidationErrors(detail: ValidationIssue[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of detail) {
+    const field = issue.loc?.at(-1);
+    if (typeof field !== "string" || errors[field]) continue;
+    const raw = typeof issue.msg === "string" ? issue.msg : "Invalid value.";
+    errors[field] = FIELD_MESSAGES[field] ?? raw.replace(/^Value error, /, "");
+  }
+  return errors;
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body && !headers.has("Content-Type")) {
@@ -27,26 +57,30 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       headers,
     });
   } catch {
-    throw new Error(UNAVAILABLE);
+    throw new ApiError(0, UNAVAILABLE);
   }
 
   if (!res.ok) {
-    let message = res.status >= 500 ? UNAVAILABLE : `Request failed (${res.status})`;
+    let body: unknown = null;
     try {
-      const body: unknown = await res.json();
-      if (typeof body === "object" && body !== null && "detail" in body) {
-        const detail = body.detail;
-        if (typeof detail === "string") {
-          message = detail;
-        } else if (Array.isArray(detail) && typeof detail[0]?.msg === "string") {
-          // FastAPI validation error (422)
-          message = detail[0].msg;
-        }
-      }
+      body = await res.json();
     } catch {
-      // Keep the status-based message when the server does not return JSON.
+      // Not JSON: the API itself is unreachable (proxy error page, 404 from the host, …).
+      throw new ApiError(res.status, UNAVAILABLE);
     }
-    throw new Error(message);
+
+    let message = res.status >= 500 ? UNAVAILABLE : `Request failed (${res.status})`;
+    let fieldErrors: Record<string, string> = {};
+    if (typeof body === "object" && body !== null && "detail" in body) {
+      const detail = body.detail;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        fieldErrors = parseValidationErrors(detail as ValidationIssue[]);
+        message = Object.values(fieldErrors)[0] ?? "Please check the highlighted fields.";
+      }
+    }
+    throw new ApiError(res.status, message, fieldErrors);
   }
 
   if (res.status === 204) {

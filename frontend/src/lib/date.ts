@@ -31,3 +31,25 @@ export function greeting(date: Date): string {
   if (h < 18) return "Good afternoon";
   return "Good evening";
 }
+
+/** "Dec 20, 2026" from an ISO date or datetime string. */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Whole days from `from` until `to` (negative when `to` is in the past). */
+export function daysUntil(to: Date, from: Date): number {
+  return Math.ceil((to.getTime() - from.getTime()) / 86_400_000);
+}
+
+/** YYYY-MM-DD in local time, as used by <input type="date">. */
+export function toDateInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
