@@ -28,7 +28,7 @@ export default function OverviewPage() {
   // Coach role without an active Coach Membership: access is paused (backend returns 403
   // on coach routes), so show the member view with an explanation.
   const notice =
-    isCoach && !membership.loading ? (
+    isCoach && membership.data && !coachAccess ? (
       <Banner tone="warn">
         <strong>Coach tools are paused.</strong> Your Coach Membership isn&apos;t active, so
         coach features are hidden until it&apos;s renewed.
